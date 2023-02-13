@@ -1,0 +1,5 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+*.h linguist-language=inform6
+*.inf linguist-language=inform6

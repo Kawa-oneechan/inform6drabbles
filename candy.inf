@@ -1,0 +1,206 @@
+!% -~S
+!% $OMIT_UNUSED_ROUTINES=1
+!% $ZCODE_LESS_DICT_DATA=1
+
+Constant Story "Candy Battle Test";
+Constant Headline "^A simple battle system implementation^";
+
+Constant CUSTOM_PLAYER_OBJECT = Candy;
+Constant OPTIONAL_NO_DARKNESS;
+Constant INITIAL_LOCATION_VALUE = Arena;
+
+Replace DrawStatusLine;
+
+Include "globals.h";
+Include "puny.h";
+
+Global lastTarget;
+
+! Little helper function in case we're running on v6
+#Iftrue (#version_number == 6);
+[ SetCursor y x f;
+	@get_wind_prop 1 13 -> f;
+	y = (y - 1) * ((f & $FF00) / 255);
+	x = (x - 1) * (f & 255);
+	if (y <= 0) y = 1;
+	if (x <= 0) x = 1;
+#IfNot;
+[ SetCursor y x;
+#EndIf;
+	@set_cursor y x;
+];
+
+! Replace the status line so we can have our stats.
+[ DrawStatusLine _scrnwidth _width _visibility_ceiling;
+	if (location == nothing || parent(player) == nothing)
+		return;
+
+	_StatusLineHeight(2);
+	_MoveCursor(1, 1);
+
+	font off;
+
+	_scrnwidth = HDR_SCREENWCHARS->0;
+	style reverse;
+	FastSpaces(_scrnwidth);
+
+	SetCursor(1, 1);
+	print " ";
+
+	_visibility_ceiling = ScopeCeiling(player);
+	if (_visibility_ceiling == location)
+		_PrintObjName(location);
+	else
+		print (The) _visibility_ceiling;
+	style reverse;
+
+	_width = _scrnwidth - 12;
+	SetCursor(1, _width);
+
+	print "Score: ", status_field_1;
+	
+	! You might want to maybe only show this part if (location == Arena).
+	SetCursor(2, 1);
+	FastSpaces(_scrnwidth);
+	SetCursor(2, 1);
+	print " ", (name)player, " | HP ", player.health, ", ATK ", player.attackRounds, "x", player.attackPower;
+	if (lastTarget)
+	{
+		_width  = _scrnwidth - (_scrnwidth / 3);
+		SetCursor(2, _width);
+		print " ", (name)lastTarget, " | HP ", lastTarget.health, ", ATK ", lastTarget.attackRounds, "x", lastTarget.attackPower;		
+	}
+	
+	font on;
+
+	_MainWindow();
+];
+
+! And now the fun stuff.
+
+! Every character that CAN fight must be one of these.
+Class FighterCharacter
+	with
+		health 10,
+		attackRounds 2,
+		attackPower 2,
+		attack [ target dmg;
+			! Player gets bit of a extra info, as a treat.
+			if (self == player)
+				print "You attack ", (the)target, ". You get to strike ", player.attackRounds, " time(s).^";
+			
+			! Determine the damage done...
+			dmg = self.calcDamage(self);
+			
+			! ... and report accordingly.
+			if (self == player)
+			{
+				if (dmg == 0)
+					print "You miss your attack!^";
+				else
+					print "You strike ", (the)target, " for ", dmg, " point(s) of damage...^";
+			}
+			else
+			{
+				if (dmg == 0)
+					print (The)self, " misses their attack!^";
+				else
+					print (The)self, " strikes for ", dmg, " point(s) of damage...^";
+			}
+
+			! Now actually DO the damage.
+			target.health = target.health - dmg;
+
+			! Check for defeat...
+			if (target.health <= 0)
+			{
+				style bold;
+				if (self == player)
+					print "You have defeated ", (the)target, "!^";
+				else
+					print (The)self, " has defeated you!^";
+				style roman;
+
+				if (player.health <= 0)
+					deadflag = 1;
+
+			}
+			rtrue;
+		],
+		! Calculates the damage done by this fighter.
+		! The intent is that some might have different rules.
+		calcDamage [ i dmg;
+			dmg = 0;
+			for (i = 0: i < self.attackRounds: i++)
+				dmg = dmg + random(self.attackPower);
+			return dmg;
+		],
+		before [;
+			Attack:
+				if (noun.health <= 0)
+					print_ret "Stop, stop! ", (The)noun, " is already dead!";
+				lastTarget = noun;
+				return player.attack(noun);
+		];
+
+! Hostile fighters will try to attack the player if they're
+! in the same room together.
+Class HostileFighterCharacter class FighterCharacter
+	with each_turn
+	[;
+		if (self.health <= 0)
+		{
+			self.health = 0;
+			return;
+		}
+		if (player.health <= 0)
+			return;
+		if (parent(self) == location)
+			self.attack(player);
+	],
+	has reactive;
+
+! Custom player character is themself a kind of fighter
+Class PlayableCharacter class FighterCharacter
+	with
+		capacity MAX_CARRIED,
+	has animate proper concealed transparent;
+
+Object Candy "Candy McGee" class PlayableCharacter
+	with name 'you' 'me' 'myself' 'yourself' 'candy',
+	description "Tiny hotot bunny with a big gun.",
+	health 50, attackRounds 4, attackPower 5;
+
+Object -> Gun "your gun"
+	with name 'your' 'gun',
+	before
+	[;
+		! To test balancing, we make Candy's stats change when
+		! you drop or take the gun. Alternatively, you might
+		! check for carried equipment in calcDamage and have
+		! it adjust the numbers automatically. I dunno, I'm
+		! not your dad.
+		Drop: player.attackRounds = 1; player.attackPower = 1;
+		Take: player.attackRounds = 4; player.attackPower = 5;
+	];
+
+Object Arena "The Arena"
+	with
+		description "You are in a hellish arena.";
+
+! Two simple enemies to defeat...
+HostileFighterCharacter -> MinorDemon "minor demon"
+	with name 'minor' 'demon',
+	description "Ugly motherfucker.",
+	health 20, attackRounds 2, attackPower 5;
+
+HostileFighterCharacter -> Imp "imp"
+	with name 'imp',
+	description "Little shit.",
+	health 5, attackRounds 2, attackPower 1;
+
+Object -> Decor "decorative pillar"
+	with name 'decorative' 'pillar', has static;
+
+[Initialise;
+];

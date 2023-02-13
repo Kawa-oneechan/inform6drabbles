@@ -132,7 +132,10 @@ Class FighterCharacter
 		calcDamage [ i dmg;
 			dmg = 0;
 			for (i = 0: i < self.attackRounds: i++)
-				dmg = dmg + random(self.attackPower);
+			{
+				! random(N) returns 1-N inclusive. Play around to get 0-N.
+				dmg = dmg + (random(self.attackPower + 1) - 1);
+			}
 			return dmg;
 		],
 		before [;
@@ -203,4 +206,5 @@ Object -> Decor "decorative pillar"
 	with name 'decorative' 'pillar', has static;
 
 [Initialise;
+	print "^^";
 ];

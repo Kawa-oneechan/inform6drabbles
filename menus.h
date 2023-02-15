@@ -37,10 +37,11 @@ Constant KEY_ARROWDOWN 130;
 Constant KEY_ARROWLEFT 131;
 Constant KEY_ARROWRIGHT 132;
 
-[ SetCursor y x;
+[ SetCursor y x i;
 #Iftrue (#version_number == 6);
-	y = y * FontY;
-	x = x * FontX;
+	@get_wind_prop 0 13 -> i;
+	y = y * ((i & $FF00) / 255);
+	x = x * (i & $FF);
 #EndIf;
 	@set_cursor y x;
 ];

@@ -14,6 +14,8 @@ The DM4's footnotes are *particularly* tiny so by the time I saw that its chapte
 
 Note that this is quite tailored for use in my own game, so anything involving the status line may not quite work for you. Go ahead, change it if you want.
 
+## *Shogun* inspired inline menus
+**[V6 only]** Left-aligned, but who cares? It's a freakin' menu that's part of the main text window!
 
 ## Top Down Maze
 Coming later, maybe. Watch this space.
